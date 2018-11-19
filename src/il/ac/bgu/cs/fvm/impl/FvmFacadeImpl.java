@@ -10,13 +10,12 @@ import il.ac.bgu.cs.fvm.programgraph.ActionDef;
 import il.ac.bgu.cs.fvm.programgraph.ConditionDef;
 import il.ac.bgu.cs.fvm.programgraph.ProgramGraph;
 import il.ac.bgu.cs.fvm.transitionsystem.AlternatingSequence;
+import il.ac.bgu.cs.fvm.transitionsystem.Transition;
 import il.ac.bgu.cs.fvm.transitionsystem.TransitionSystem;
 import il.ac.bgu.cs.fvm.util.Pair;
 import il.ac.bgu.cs.fvm.verification.VerificationResult;
 import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Implement the methods in this class. You may add additional classes as you
@@ -27,17 +26,62 @@ public class FvmFacadeImpl implements FvmFacade {
 
     @Override
     public <S, A, P> TransitionSystem<S, A, P> createTransitionSystem() {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement createTransitionSystem
+        TransitionSystemImpl<S,A,P> ts = new TransitionSystemImpl<S,A,P>();
+        ts.init();
+        return ts;
     }
 
     @Override
+    /*
+    A transition system is action-deterministic if:
+    |I| <=1  && |Post(s,a)|<=1
+    * */
     public <S, A, P> boolean isActionDeterministic(TransitionSystem<S, A, P> ts) {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement isActionDeterministic
+        Set<S> initialStates = ts.getInitialStates();
+        if(initialStates.size() > 1)
+            return false;
+        HashMap<S, Set<A>> postCheckers = new HashMap<S, Set<A>>();
+        Set<Transition<S,A>> transitions = ts.getTransitions();
+        for(Transition<S,A> transition: transitions){
+            S from = transition.getFrom();
+            A action = transition.getAction();
+            Set<A> actions = postCheckers.get(from);
+            if(actions == null){
+                actions = new HashSet<A>();
+                actions.add(action);
+            }
+            else {
+                if (actions.contains(action))
+                    return false;
+                else{
+                    actions.add(action);
+                    postCheckers.replace(from, actions);
+                }
+            }
+
+        }
+        return true;
     }
 
     @Override
+    /*
+    A transition system has deterministic tagging if:
+    |I| <=1  && |Post(s) *intersects* {s' such that: L(s') = A|<=1
+    * */
     public <S, A, P> boolean isAPDeterministic(TransitionSystem<S, A, P> ts) {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement isAPDeterministic
+        Set<S> allStates = ts.getStates();
+        for(S state : allStates){
+            Set<S> posts = post(ts, state);
+            Set<Object> labels = new HashSet<>();
+            for(S post: posts){
+                labels.add(ts.getLabel(post));
+            }
+            // There are at least 2 post states with the same labeling
+            if(labels.size() < posts.size()){
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -67,22 +111,43 @@ public class FvmFacadeImpl implements FvmFacade {
 
     @Override
     public <S> Set<S> post(TransitionSystem<S, ?, ?> ts, S s) {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement post
+        Set<S> postStates = new HashSet<>();
+        for(Transition<S, ?> transition: ts.getTransitions()){
+            if(transition.getFrom().equals(s))
+                postStates.add(transition.getTo());
+
+        }
+        return postStates;
     }
 
     @Override
     public <S> Set<S> post(TransitionSystem<S, ?, ?> ts, Set<S> c) {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement post
+        Set<S> postStates = new HashSet<>();
+        for(Transition<S, ?> transition: ts.getTransitions()){
+            if(c.contains(transition.getFrom()))
+                postStates.add(transition.getTo());
+        }
+        return postStates;
     }
 
     @Override
     public <S, A> Set<S> post(TransitionSystem<S, A, ?> ts, S s, A a) {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement post
+        Set<S> postStates = new HashSet<>();
+        for(Transition<S, ?> transition: ts.getTransitions()){
+            if(transition.getFrom().equals(s) && transition.getAction().equals(a))
+                postStates.add(transition.getTo());
+        }
+        return postStates;
     }
 
     @Override
     public <S, A> Set<S> post(TransitionSystem<S, A, ?> ts, Set<S> c, A a) {
-        throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement post
+        Set<S> postStates = new HashSet<>();
+        for(Transition<S, ?> transition: ts.getTransitions()){
+            if(c.contains(transition.getFrom()) && transition.getAction().equals(a))
+                postStates.add(transition.getTo());
+        }
+        return postStates;
     }
 
     @Override
@@ -164,6 +229,10 @@ public class FvmFacadeImpl implements FvmFacade {
     public ProgramGraph<String, String> programGraphFromNanoPromela(InputStream inputStream) throws Exception {
         throw new UnsupportedOperationException("Not supported yet."); // TODO: Implement programGraphFromNanoPromela
     }
+
+
+//    END OF ASSIGNMENT 1
+
 
     @Override
     public <S, A, P, Saut> VerificationResult<S> verifyAnOmegaRegularProperty(TransitionSystem<S, A, P> ts, Automaton<Saut, P> aut) {
